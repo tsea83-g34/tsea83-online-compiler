@@ -1,0 +1,1 @@
+Link to Python form upload: https://stackoverflow.com/questions/20019600/submit-form-and-upload-file-with-requests
