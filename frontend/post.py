@@ -1,5 +1,20 @@
 import httplib
 import mimetypes
+import json
+import sys
+
+BOTH = 0
+ASSEMBLE = 1 
+COMPILE = 2
+
+request_mode = BOTH
+
+input_file = sys.argv[1]
+pm_name = sys.argv[2]
+dm_name = sys.argv[3]
+if len(sys.argv) > 4:
+    request_mode = COMPILE if sys.argv[4] == "compile" else ASSEMBLE
+
 
 def post_multipart(host, selector, fields, files):
     content_type, body = encode_multipart_formdata(fields, files)
@@ -37,11 +52,28 @@ def get_content_type(filename):
     return mimetypes.guess_type(filename)[0] or 'application/octet-stream'
 
 
+def write_to_file(contents, file_path):
+    file = open(file_path, "w")
+    file.write(contents)
+    file.close()
+
 asm_contents = open("test.asm").read()
-res = post_multipart("46.101.140.189:8320", "/assemble", [
+if request_mode == BOTH:
+    route = "/build"
+elif request_mode == ASSEMBLE:
+    route = "/assemble"
+else:
+    route = "/compile"
+
+
+
+res = post_multipart("46.101.140.189:8320", route , [
     ("name", "test.asm")
 ], [
     ("file", "test.asm", asm_contents)
 ])
 
+res = json.loads(res)
 print(res)
+write_to_file(res["data"]["pm"], pm_name)
+write_to_file(res["data"]["dm"], dm_name)
