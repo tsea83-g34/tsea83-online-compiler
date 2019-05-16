@@ -1,3 +1,10 @@
+"""
+GUIDE:
+
+python2 <code.cmm> <pm.out> <dm.out> 
+
+"""
+
 import httplib
 import mimetypes
 import json
