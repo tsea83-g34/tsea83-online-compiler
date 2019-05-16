@@ -19,7 +19,7 @@ app.post("/compile", upload.single("file"), function(req, res){
     compile(new Client(req, res), true)
 })
 
-app.post("/assemble", upload.single("file"), function(req, res){
+app.post("/build", upload.single("file"), function(req, res){
     compile(new Client(req, res))
 })
 
