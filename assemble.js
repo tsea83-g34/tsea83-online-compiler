@@ -7,7 +7,7 @@ const python_version = env.production ? "python3" : "python"
 module.exports = async (client) => {
     try {
         const filePath = client.req.file.path
-        child = await exec(`${python_version} assembler/assemble.py ${filePath} --out program.vhd --dm_name data.vhd`)
+        const child = await exec(`${python_version} assembler/assemble.py ${filePath} --out program.vhd --dm_name data.vhd`)
         const pm = await readFileText("program.vhd", client)
         const dm = await readFileText("data.vhd", client)
         client.success({
