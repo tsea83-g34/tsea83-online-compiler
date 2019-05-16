@@ -1,14 +1,12 @@
-const {readFile} = require('./fs_promise')
-const {exec} = require('child_process')
+const {readFile, exec} = require('./promises')
 const env = require('./env')
 
 const python_version = env.production ? "python3" : "python" 
 
 module.exports = async (filePath) => {
     try {
-        child = exec(`${python_version} test.py`, (err, stdout, stderr) =>{
-            console.log(stdout)
-        })
+        child = await exec(`${python_version} assembler/assemble.py ${filePath} --out program.vhd --dm_name data.vhd`)
+        console.log(child)
         
     } catch(e) {
         console.error(e)
