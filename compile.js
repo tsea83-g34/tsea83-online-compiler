@@ -7,13 +7,13 @@ module.exports = async(client, onlyCompile=false) => {
         const filePath = client.req.file.path 
         const child = await exec(`./compiler/compiler ${filePath}`)
         if (onlyCompile){
-            const asm = readFileText("compiler/output.a")
+            const asm = readFileText("output.a")
             client.success({
                 asm
             })
             return
         }
-        client.req.file.path = "compiler/output.a"
+        client.req.file.path = "output.a"
         assemble(client)
 
     } catch(e){
