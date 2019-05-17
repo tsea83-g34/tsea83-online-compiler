@@ -12,11 +12,11 @@ class Client {
         })
     }
 
-    error(errorCode, message){
+    error(errorCode, message, data={}){
         this.res.json({
             status: errorCode,
             message,
-            data: {}
+            data,
         })
     }
 }

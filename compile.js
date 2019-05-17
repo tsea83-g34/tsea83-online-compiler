@@ -17,6 +17,6 @@ module.exports = async(client, onlyCompile=false) => {
 
     } catch(e){
         console.error(e)
-        client.error(203, "Messed up compiling")
+        client.error(203, "Messed up compiling", {error: e})
     }
 }
