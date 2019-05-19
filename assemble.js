@@ -10,7 +10,7 @@ module.exports = async (client) => {
         const child = await exec(`${python_version} assembler/assemble.py ${filePath} --out program.vhd --dm_name data.vhd`)
         const pm = await readFileText("program.vhd", client)
         const dm = await readFileText("data.vhd", client)
-        const uart = await readFile("uart.bin")
+        let uart = await readFile("uart.bin")
         uart = uart.toString("base64")
         client.success({
             pm,
