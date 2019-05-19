@@ -20,6 +20,6 @@ module.exports = async (client) => {
         
     } catch(e) {
         console.error(e)
-        client.error(201, "Failed exec step", {error:e})
+        client.error(201, "Failed exec step", {error:e.stderr})
     }
 }
