@@ -1,12 +1,15 @@
 const {exec} = require('./promises')
 const readFileText = require('./read_file_text')
+const assemble = require('./assemble')
+
 
 module.exports = async(client, onlyCompile=false) => {
     try {
         const filePath = client.req.file.path 
-        const child = await exec(`./compiler/compiler ${filePath}`)
+        console.log("cmm file path: " + filePath)
+	const child = await exec(`./compiler/compiler ${filePath}`)
         if (onlyCompile){
-            const asm = readFileText("output.a")
+            const asm = await readFileText("output.a", client)
             client.success({
                 asm
             })
