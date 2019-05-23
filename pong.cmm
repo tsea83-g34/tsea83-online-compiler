@@ -1,0 +1,1493 @@
+/*
+TSEA83 PROJECT OS
+
+Basic os and terminal program for TSEA83 Computer design course at
+Linköpings Universitet written in the propriotary C-based language C--.
+*/
+
+/*
+C-- STANDARD LIB
+
+Includes features:
+
+ Statics:
+  - Constants
+
+ Raw:
+  - In
+  - Out
+  - Video memory access
+
+ Utility:
+  - Bounds
+ 
+ Compund:
+  - Tile write
+  - Buffer output
+  - Palette access
+  - Print
+  - String
+
+*/
+
+// =========== Constants ===========
+int MEMORY_SIZE = 4096;
+
+// ============== RAW ==============
+
+/*  IN - Return the value at port
+         (Currently ignores port argument, always reads from port 0)
+    
+    Args:
+     * Port - Index of port to read
+
+    Returns:
+     long - Port value
+*/
+
+long in(int port) {
+    long ret;
+    asm ("in $, 0" ret);
+    return ret;
+}
+
+/*  OUT - Outputs a value to the port
+          (Currently ignores port argument, always writes to port 0)
+    Args:
+     * Port - Index of port to read
+
+    Returns:
+     void -
+*/
+
+int out(long value int port) {
+    asm ("out 0, $" value);
+}
+
+/*  VGA WRITE - Write a value to video memory
+    
+    Args:
+     * Addr  - Memory address to write to
+     * Value - Value to write
+
+    Returns:
+     void -
+*/
+
+int vga_write(int value int addr) {
+    asm ("vgaw $, $, 0" addr value);
+}
+
+// ============ Utility ============
+
+/*  OUTSIDE BOUND - Check if a value is between two other values
+    
+    Args:
+     * Value - Value to check
+     * Low   - Lower bound (inclusive)
+     * High  - Higher bound (exclusive)
+
+    Returns:
+     bool - returns false if given value is inside of the bounds
+*/
+
+int outside_bound(int value int low int high) {
+    return (value >= high) | (value < low);
+}
+/*
+C-- STANDARD LIB COLORS
+
+Requires:
+*/
+
+// Basic
+int PURE_BLACK = 0;
+int DARK_GRAY  = 73;
+int LIGHT_GRAY = 146;
+int PURE_WHITE = 255;
+
+// Pure color
+int PURE_RED    = 224;
+int PURE_ORANGE = 240;
+int PURE_YELLOW = 252;
+int PURE_LIME   = 156;
+int PURE_GREEN  = 28;
+int PURE_TEAL   = 30;
+int PURE_AZURE  = 31;
+int PURE_BLUE   = 19;
+int PURE_MARINE = 3;
+int PURE_PURPLE = 131;
+int PURE_PINK   = 227;
+
+// TempleOS
+int TEMPLE_BLUE   = 95;
+int TEMPLE_YELLOW = 253;
+int TEMPLE_GREEN  = 190;
+
+int TEMPLE_BLUE_DARK   = 45;
+int TEMPLE_YELLOW_DARK = 108;
+int TEMPLE_GREEN_DARK  = 77;
+
+// Atom ONE dark
+int ATOM_PINK  = 207;
+int ATOM_GRAY  = 36;
+int ATOM_GREEN = 118;
+int ATOM_WHITE = 182;
+int ATOM_BLUE  = 87;
+int ATOM_RED   = 233;
+
+// Purple haze :DD
+int PURPLE_1 = 37;
+int PURPLE_2 = 40;
+int PURPLE_3 = 134;
+/*
+C-- STANDARD LIB SHIFT
+
+Requires:
+*/
+
+// ========================== Long ==========================
+
+/*  LEFT SHIFT (long) - Shift left
+    
+    Args:
+     * X     - Number to shift (long)
+     * Steps - Steps to shift
+
+    Returns:
+     long - Shifted number
+*/
+long left_shift_l(long x int steps) {
+    while(steps > 0) {
+        asm("lsl[4] $, $" x x);
+        steps = steps - 1;
+    }
+    return x;
+}
+
+/*  RIGHT SHIFT (long) - Shift right
+    
+    Args:
+     * X     - Number to shift (long)
+     * Steps - Steps to shift
+
+    Returns:
+     long - Shifted number
+*/
+long right_shift_l(long x int steps) {
+    while(steps > 0) {
+        asm("lsr[4] $, $" x x);
+        steps = steps - 1;
+    }
+    return x;
+}
+
+// ========================== Int ==========================
+
+/*  LEFT SHIFT (int) - Shift left
+    
+    Args:
+     * X     - Number to shift (int)
+     * Steps - Steps to shift
+
+    Returns:
+     int - Shifted number
+*/
+int left_shift_i(int x int steps) {
+    while(steps > 0) {
+        asm("lsl[2] $, $" x x);
+        steps = steps - 1;
+    }
+    return x;
+}
+
+/*  RIGHT SHIFT (int) - Shift right
+    
+    Args:
+     * X     - Number to shift (int)
+     * Steps - Steps to shift
+
+    Returns:
+     int - Shifted number
+*/
+int right_shift_i(int x int steps) {
+    while(steps > 0) {
+        asm("lsr[2] $, $" x x);
+        steps = steps - 1;
+    }
+    return x;
+}
+
+// ========================== Char ==========================
+
+/*  LEFT SHIFT (char) - Shift left
+    
+    Args:
+     * X     - Number to shift (char)
+     * Steps - Steps to shift
+
+    Returns:
+     char - Shifted number
+*/
+
+int left_shift_c(char x int steps) {
+    while(steps > 0) {
+        asm("lsl[1] $, $" x x);
+        steps = steps - 1;
+    }
+    return x;
+}
+
+/*  RIGHT SHIFT (char) - Shift right
+    
+    Args:
+     * X     - Number to shift (char)
+     * Steps - Steps to shift
+
+    Returns:
+     char - Shifted number
+*/
+char right_shift_c(char x int steps) {
+    while(steps > 0) {
+        asm("lsr[1] $, $" x x);
+        steps = steps - 1;
+    }
+    return x;
+}
+/*
+C-- STANDARD LIB SLEEP
+
+Requires:
+*/
+
+// SLEEP CONSTANT
+long SLEEP_MS_MULT = 3846;
+
+/*  SLEEP MS - Busy wait for a given amount of miliseconds
+    
+    Args:
+     * ms - Miliseconds to sleep for (approximate)
+
+    Returns:
+     void -
+*/
+int sleep_ms(long ms) {
+    long wait_until = ms * SLEEP_MS_MULT;
+    long count = 0;
+
+    // This if statement should not be needed, but this function does not work without it
+    // Note that the errors do not stem from the fact that count is not properly set to
+    if (count) count = 0;
+
+    while (count < wait_until) {
+        count = count + 1;
+    }
+}
+/*
+C-- STANDARD LIB SHIFT
+
+Requires:
+ - SHIFT
+*/
+
+/*  DIVIDE - Divide two numbers to get the whole number division and rest
+             NOTE: Costly operation!
+    
+    Args:
+     * Numerator   - 
+     * Denomenator -
+
+    Returns:
+     long - High bytes represent the division and low bytes represent the rest
+*/
+int divide(int num int den) {
+    // NOTE: This could be shortened to remove temporary variable rest
+    int rest = num;
+    int div  = 0;
+
+    while (rest > den) {
+        rest = rest - den;
+        div  = div + 1;
+    }
+
+    // Format output
+    long ret = div;
+    ret = left_shift_l(ret 16);
+    ret = ret + rest;
+
+    return ret;
+}
+/*
+C-- STANDARD LIB STRING
+
+Requires:
+*/
+
+/*  STRING COMPARE - Compare two char buffers lexicographicaly
+    
+    Args:
+     * s1_p - Pointer to first char buffer
+     * s2_p - Pointer to second char buffer
+
+    Returns:
+     int - 0 if equal, positive if s1 is after s2 in lexicographical order, otherwise
+           negative. Value denotes distance between first differing chars.
+           
+*/
+int string_compare(char* s1_p char* s2_p) {
+    while(*s1_p == *s2_p) {
+        if (*s1_p == '\0') return 0;
+        s1_p = s1_p + 1;
+        s2_p = s2_p + 1;
+    }
+    return *s1_p - *s2_p;
+}
+
+/*  STRING LENGTH - Length of a char buffer
+    
+    Args:
+     * s_p - Pointer to char buffer
+
+    Returns:
+     int - Length of char buffer
+*/
+int string_length(char* s_p) {
+    char* start = s_p;
+    while(*s_p != '\0') {
+        s_p = s_p + 1;
+    }
+    return s_p - start;
+}
+
+/*  STRING COPY - Copy a char buffer to a destination buffer
+
+    Args:
+     * s_p - Pointer to char buffer to copy
+     * d_p - Pointer to char buffer to copy into
+
+    Returns:
+     void -
+*/
+int string_copy(char* s_p char* d_p) {
+    while(*s_p != '\0') {
+        *d_p = *s_p;
+
+        s_p = s_p + 1;
+        d_p = d_p + 1;
+    }
+}
+
+/*  MEM SET - Set memory to a given char in a given range
+
+    Args:
+     * destination - Pointer to first memory address
+     * length      - Number of memory addresses to set
+     * value       - Value to set
+
+    Returns:
+     void -
+*/
+int memset(char* destination int length char value) {
+    int i = 0;
+    while(i < length) {
+        destination[i] = value;
+        i = i + 1;
+    }
+}
+/*
+C-- STANDARD LIB VIDEO
+
+Requires:
+ - STD_LIB
+ - SHIFT
+*/
+
+// =========== Constants ===========
+int VIDEO_TILE_WIDTH  = 40;
+int VIDEO_TILE_HEIGHT = 30;
+int VIDEO_TILES = VIDEO_TILE_WIDTH * VIDEO_TILE_HEIGHT;
+
+int PALETTE_START = VIDEO_TILES;
+int PALETTE_SIZE  = 16;
+
+int VIDEO_MEMORY_SIZE = VIDEO_TILES + PALETTE_SIZE;
+
+int VIDEO_PIXEL_WIDTH  = 640;
+int VIDEO_PIXEL_HEIGHT = 480;
+
+
+/*  TILE INDEX WRITE - Write a value to a specific tile in video memory
+    
+    Args:
+     * Tile  - Tile index to write to
+     * Value - Value to write
+
+    Returns:
+     bool - returns false if given an invalid tile
+*/
+
+int tile_index_write(int value int tile) {
+    if (tile >= VIDEO_TILES) return 0;
+
+    vga_write(value tile);
+    return 1;
+}
+
+
+/*  TILE COORDINATE WRITE - Write a value to a specific tile in video memory
+    
+    Args:
+     * Tile x - Tile x index to write to
+     * Tile y - Tile y index to write to
+     * Value  - Value to write
+
+    Returns:
+     bool - returns false if given an invalid tile
+*/
+
+int tile_coord_write(long value int x int y) {
+    if ((x >= VIDEO_PIXEL_WIDTH) | (y >= VIDEO_PIXEL_HEIGHT)) return 0;
+
+    int addr = x + (VIDEO_PIXEL_WIDTH * y);
+
+    vga_write(value addr);
+    return 1;
+}
+
+/*  PALETTE INDEX WRITE - Write a value to a specific palette index in video memory
+    
+    Args:
+     * Index    - Tile x index to write to
+     * FG value - Foreground color
+     * BG value - Background color
+
+    Returns:
+     void -
+*/
+
+int palette_index_write(int index int fg int bg) {
+    if (index >= PALETTE_SIZE) return 0;
+
+    int addr = 1200 + index;
+    int value = fg;
+    value = left_shift_i(fg 8);
+    value = value + bg;
+
+    vga_write(value addr);
+    return 1;
+}
+/*
+C-- STANDARD LIB PRINT
+
+Requires:
+ - STD_LIB
+ - VIDEO
+ - MATH
+*/
+
+// TEXT BUFFER GLOBALS
+// (color must be a value between 0 and 15)
+int FG_COLOR = 0;
+int BG_COLOR = 0;
+
+int  CURSOR   = 0;
+int  CURSOR_X = 0;
+int  CURSOR_Y = 0;
+
+/*  SET CURSOR - Set the cursor to a given pos
+    
+    Args:
+     * X - X position
+     * Y - Y position
+
+    Returns:
+     bool - false if given an illegal position
+*/
+int set_cursor(char x char y) {
+    if ((x >= VIDEO_TILE_WIDTH) | (y >= VIDEO_TILE_HEIGHT)) return 0;
+
+    CURSOR_X = x;
+    CURSOR_Y = y;
+    CURSOR   = x + (y * VIDEO_TILE_WIDTH);
+
+    return 1;
+}
+
+/*  ADVANCE CURSOR - Advance the cursor one step
+    
+    Args:
+
+    Returns:
+     void -
+*/
+int advance_cursor() {
+    CURSOR = CURSOR + 1;
+    // Still inside bounds, update x, y
+    if (CURSOR < VIDEO_TILES) {
+        CURSOR_X = CURSOR_X + 1;
+
+        if (CURSOR_X >= VIDEO_TILE_WIDTH) {
+            CURSOR_X = 0;
+            CURSOR_Y = CURSOR_Y + 1;
+        }
+    }
+    // Outside screen bounds, reset!
+    else {
+        CURSOR   = 0;
+        CURSOR_X = 0;
+        CURSOR_Y = 0;
+    }
+}
+
+/*  BACK CURSOR - Back the cursor one step
+    
+    Args:
+
+    Returns:
+     void -
+*/
+int back_cursor() {
+    if (CURSOR == 0) return 0;
+
+    CURSOR = CURSOR - 1;
+    // Still inside bounds, update x, y
+    if (CURSOR < VIDEO_TILES) {
+        CURSOR_X = CURSOR_X - 1;
+
+        if (CURSOR_X < 0) {
+            CURSOR_X = 0;
+            CURSOR_Y = CURSOR_Y - 1;
+        }
+    }
+    // Outside screen bounds, reset!
+    else {
+        CURSOR   = VIDEO_TILES - 1;
+        CURSOR_X = VIDEO_TILE_WIDTH;
+        CURSOR_Y = VIDEO_TILE_HEIGHT;
+    }
+}
+
+/*  ADVANCE STEPS - Advance the cursor a specified number of steps
+                    NOTE: Costly operation!
+    
+    Args:
+     * Steps - Number of steps to advance (less than VIDEO_TILES)
+
+    Returns:
+     bool - false if given illegal input
+*/
+int advance_steps(int steps) {
+    if (steps >= VIDEO_TILES) return 0;
+
+    CURSOR = CURSOR + steps;
+
+    // Outside screen bounds, reset!
+    if (CURSOR >= VIDEO_TILES) CURSOR = CURSOR - VIDEO_TILES;
+
+    long width_divide  = divide(CURSOR VIDEO_TILE_WIDTH);
+    long height_divide = divide(CURSOR VIDEO_TILE_HEIGHT);
+
+    CURSOR_X = right_shift_l(width_divide  16);
+    CURSOR_Y = right_shift_l(height_divide 16);
+    return 1;
+}
+
+/*  ADVANCE LINE - Advance the cursor one line
+    
+    Args:
+
+    Returns:
+     void -
+*/
+int advance_line() {
+    CURSOR_Y = CURSOR_Y + 1;
+
+    if (CURSOR_Y < VIDEO_TILE_HEIGHT) {
+        CURSOR = (VIDEO_TILE_WIDTH * CURSOR_Y) + CURSOR_X;
+    }
+    // Outside screen bounds, reset!
+    else {
+        CURSOR   = CURSOR_X;
+        CURSOR_Y = 0;
+    }
+}
+
+/*  BACK LINE - Back the cursor one line
+    
+    Args:
+
+    Returns:
+     void -
+*/
+int back_line() {
+    CURSOR_Y = CURSOR_Y - 1;
+
+    if (CURSOR_Y >= 0) {
+        CURSOR = (VIDEO_TILE_WIDTH * CURSOR_Y) + CURSOR_X;
+    }
+    // Outside screen bounds, reset!
+    else {
+        CURSOR   = CURSOR_X;
+        CURSOR_Y = VIDEO_TILE_HEIGHT - 1;
+    }
+}
+
+/*  NEW LINE - Advance the cursor to the next line
+    
+    Args:
+
+    Returns:
+     void -
+*/
+int new_line() {
+    CURSOR_Y = CURSOR_Y + 1;
+
+    if (CURSOR_Y < VIDEO_TILE_HEIGHT) {
+        CURSOR = VIDEO_TILE_WIDTH * CURSOR_Y;
+    }
+    // Outside screen bounds, reset!
+    else {
+        CURSOR   = 0;
+        CURSOR_Y = 0;
+    }
+    CURSOR_X = 0;
+}
+
+/*  PRINT C AT - Write a char to the screen at the given position
+    
+    Args:
+     * Char - Char to output
+     * Pos  - Position
+
+    Returns:
+     bool - returns false if invalid color or position is given
+*/
+int print_c_at(char c int pos) {
+
+    if ((FG_COLOR >= PALETTE_SIZE) | (BG_COLOR >= PALETTE_SIZE)) return 0;
+
+    // Build value according to the convetion:
+    //   fg     bg       char
+    // [  4  ][  4  ][     8     ]
+
+    // Color
+    int color = FG_COLOR;
+    color = left_shift_i(color 4);
+    color = color + BG_COLOR;
+    color = left_shift_i(color 8);
+
+    // Char
+    int value = c;
+    value = value + color;
+
+    // Write and advance cursor
+    return tile_index_write(value pos);
+}
+
+/*  PRINT C AT POS - Write a char to the screen at the given position
+    
+    Args:
+     * Char - Char to output
+     * X    - X position
+     * Y    - Y position
+
+    Returns:
+     bool - returns false if invalid color or position is given
+*/
+int print_c_at_pos(char c int x int y) {
+    return print_c_at(c x + (VIDEO_TILE_WIDTH * y));
+}
+
+/*  PRINT C - Write a char to the screen at the current position and 
+              move the cursor.
+    
+    Args:
+     * Char - Char to output
+
+    Returns:
+     bool - returns false if invalid color is given
+*/
+int print_c(char c) {
+
+    // Write char and advance cursor
+    if (print_c_at(c CURSOR)) {
+        advance_cursor();
+        return 1;
+    }
+    return 0;
+}
+
+/*  PRINT - Write a char buffer to the screen at the current position and 
+            move the cursor.
+    
+    Args:
+     * Char - Char pointer to the buffer to output
+
+    Returns:
+     bool - returns false if invalid color is given
+*/
+int print(char* cb_p) {
+    while (*cb_p) {
+        print_c(*cb_p);
+        cb_p = cb_p + 1;
+    }
+}
+
+/*  PRINT AT - Write a char buffer to the screen at a given starting position.
+
+    Args:
+     * Char - Char pointer to the buffer to output
+ 
+    Returns:
+     void -
+*/
+int print_at(char* cb_p int index) {
+    char* start_p = cb_p;
+    while (*cb_p) {
+        print_c_at(*cb_p index + (cb_p - start_p));
+        cb_p = cb_p + 1;
+    }
+}
+ 
+/*  PRINT SPRITE - Write a char buffer to the screen at a given starting position.
+                   New line breaks the printing and jumps to the same cursor index
+                   on the line below.
+   
+    Args:
+     * Char - Char pointer to the buffer to output
+
+    Returns:
+     void -
+*/
+int print_sprite(char* cb_p int index) {
+    char* start_p = cb_p;
+    while (*cb_p) {
+        if (*cb_p == '\n') {
+            index = index + VIDEO_TILE_WIDTH;
+        }
+        print_c_at(*cb_p index + (cb_p - start_p));
+        cb_p = cb_p + 1;
+    }
+}
+
+/*  CLEAR - Clear the screen and reset the cursor
+    
+    Args:
+
+    Returns:
+     void -
+*/
+int clear() {
+    int i = 0;
+    out(i 0);
+    while(i < VIDEO_TILES) {
+        tile_index_write(0 i);
+        i = i + 1;
+    }
+
+    CURSOR   = 0;
+    CURSOR_X = 0;
+    CURSOR_Y = 0;
+}
+/*
+C-- STANDARD LIB PALETTES
+
+Requires:
+ - STD_LIB
+ - COLORS
+*/
+
+/*  LOAD BASIC PALETTE - Load a predefined palette of pure colors to both foreground and background palette
+    
+    Args:
+
+    Returns:
+     void -
+*/
+
+int load_basic_palette() {
+    palette_index_write(0  PURE_WHITE  PURE_BLACK);
+    palette_index_write(1  LIGHT_GRAY  DARK_GRAY);
+    palette_index_write(2  DARK_GRAY   LIGHT_GRAY);
+    palette_index_write(3  PURE_BLACK  PURE_WHITE);
+    palette_index_write(4  PURE_RED    PURE_RED);
+    palette_index_write(5  PURE_ORANGE PURE_ORANGE);
+    palette_index_write(6  PURE_YELLOW PURE_YELLOW);
+    palette_index_write(7  PURE_LIME   PURE_LIME);
+    palette_index_write(8  PURE_GREEN  PURE_GREEN);
+    palette_index_write(9  PURE_TEAL   PURE_TEAL);
+    palette_index_write(10 PURE_AZURE  PURE_AZURE);
+    palette_index_write(11 PURE_BLUE   PURE_BLUE);
+    palette_index_write(12 PURE_MARINE PURE_MARINE);
+    palette_index_write(13 PURE_PURPLE PURE_PURPLE);
+    palette_index_write(14 PURE_PINK   PURE_PINK);
+    palette_index_write(15 0 0);
+}
+/*
+C-- STANDARD LIB KEYBOARD
+
+Requires:
+ - STD_LIB
+ - SHIFT
+*/
+
+/*  READ KEYBOARD - Read the next value from the keyboard
+    
+    Args:
+
+    Returns:
+     long - Keyboard value (if new!)
+*/
+
+long read_keyboard() {
+    long kbv = in(0);
+
+    // Mask of the 12th bit, denoting a new value
+    long new_masked = 0x1000 & kbv;
+
+    // Mask of the 11th bit, denoting a MAKE
+    long make_masked = 0x0800 & kbv;
+
+    // Value is both new and a MAKE
+    // Shift one down to align with second mask
+    if (right_shift_l(new_masked 1) & make_masked){
+        // SIGN EXTEND? 
+        return kbv;
+    }
+    //else return 0
+}
+
+/*  READ CHAR - Read the next character from the keyboard
+    
+    Args:
+
+    Returns:
+     char - Keyboard decoded char (if new!)
+*/
+
+char read_char() {
+    long kbv = in(0);
+
+    // Mask of the 12th bit, denoting a new value
+    long new_masked = 0x1000 & kbv;
+
+    // Mask of the 11th bit, denoting a MAKE
+    long make_masked = 0x0800 & kbv;
+
+    // Shift one down to align with second mask
+    long shifted = right_shift_l(new_masked 1);
+
+    int i = 0;
+
+    // Value is both new and a MAKE
+    if (shifted & make_masked){
+        // SIGN EXTEND? 
+        return 0x000000FF & kbv;
+    }
+    //else return 0
+}
+
+char USER_PROGRAMS[] = "ls\0pong\0snake_paint\0";
+int USER_PROGRAM_COUNT = 3;
+
+int ls();
+int pong();
+int snake_paint();
+
+int call_user_program(int program) {
+	if (program == 0) {
+		ls();
+	}
+	else if (program == 1) {
+		pong();
+	}
+	else if (program == 2) {
+		snake_paint();
+	}
+	else {}
+}
+
+/*
+TSEA83 PROJECT USER PROGRAM
+ 
+LS - A program for printing all user programs
+*/
+ 
+int ls() {
+    int i = 0;
+ 
+    char *name = USER_PROGRAMS;
+    out(USER_PROGRAM_COUNT 0);
+    // Print all user program names
+    while (i < USER_PROGRAM_COUNT) {
+        int length = string_length(name);
+        print_c('*');
+        print(name);
+        new_line();
+        name = name + length + 1;
+        i = i + 1;
+    }
+
+    new_line();
+ 
+    char str[] = "Press ESC to quit.";
+ 
+    print(str);
+ 
+    // Poll for quit
+    char keyboard = 0;
+    while (keyboard != '\e'){
+        keyboard = read_char();
+    }
+}
+/*
+  TSEA83 project 
+  
+  User program for simple pong game.
+
+  Author: Angus Lothian 2019, MUX-OS
+*/
+
+// Game constants
+int width = 40;
+int height = 30;
+
+int p_height = 5;
+
+int score1_x = 1;
+int score1_y = 0;
+int score2_x = 38;
+int score2_y = 0;
+
+int padding = 2;
+
+int win_score = 3;
+
+// tile versions
+char bg = 0;
+char wall = 1;
+char p1 = 2;
+char p2 = 3;
+char ball = 4;
+char score1 = 5;
+char score2 = 6;
+char point_zone1 = 7;
+char point_zone2 = 8;
+
+// Game variables
+char board[1200];
+
+// Output strings
+char starting[] = " STARTING...";
+char player_won[] = "PLAYER X WON";
+char play_again[] = "PRESS ENTER TO PLAY AGAIN";
+char goal[] = "GOOOOOAAAAAL";
+char remaking[] = "REMAKING...";
+char goodbye[] = "GOODBYE";
+
+int pong() {
+  // Input variables
+  char keyboard = 0;
+
+	// Priting variables
+	char print_y = 8;
+	char print_x = 19;
+
+	palette_index_write(0 PURPLE_3 PURPLE_3);               // background
+  palette_index_write(1 PURPLE_1 PURPLE_1); // wall
+  palette_index_write(2 ATOM_PINK PURPLE_3);     	        // ball
+  palette_index_write(3 ATOM_PINK PURPLE_1); 	      // score
+	palette_index_write(4 PURPLE_2 PURPLE_2);             // point zone
+	palette_index_write(5 ATOM_WHITE ATOM_WHITE); 		        // player 
+	palette_index_write(6 (ATOM_PINK) (ATOM_GRAY+1));         // text
+
+  // Main program loop
+  while (1) {
+    // Setup variables
+    int game_running = 1;
+    int p1score = 0;
+    int p2score = 0;
+    char winner = 0;
+
+    int ball_x = 19;
+    int ball_y = 14;
+    int ball_n_x = 0;
+    int ball_n_y = 0;
+    int ball_d_x = 1;
+    int ball_d_y = 1;
+
+    int p1_x = 2;
+    int p1_y = 12;
+    
+    int p2_x = 37;
+    int p2_y = 12;
+
+		// Loop variables
+		int i = 0;	
+
+		// Set all tiles to bg first
+		i = 0;
+		while (i < 1200) {
+			board[i] = bg;
+			i = i + 1;
+		}	
+
+		out(0x1111 0);
+		// Setup player
+		i = 2;
+		if (i < (height - padding)) {
+			out(i 0);
+		}
+
+		// Setup point zones
+		while (i < (height - padding)) {
+			board[(i*width)] = point_zone1;
+			board[(i*width) + 1] = point_zone1;
+
+			board[(i*width) + (width-2)] = point_zone2;
+			board[(i*width) + (width-1)] = point_zone2;
+			i = i + 1;
+		}	
+
+		// Setup wall
+		i = 0;
+		while (i < width) {
+			// Upper wall
+			board[i] = wall;
+			board[(width) + i] = wall;
+
+			board[((height-2) * width) + i] = wall;
+			board[((height-1) * width) + i] = wall;
+			i = i + 1;
+		}
+
+		// Setup scores
+		board[(score1_y*width) + score1_x] = score1;
+		board[(score2_y*width) + score2_x] = score2;
+
+		// Setup player
+		out(0xfefe 0);
+		i = 0;
+		if (i == 0) {
+			out(i 0);
+		}
+		while (i < p_height) {
+			board[((p1_y+i)*width) + p1_x] = p1;
+			board[((p2_y+i)*width) + p2_x] = p2;
+			out(0x0A55 0);
+			i = i + 1;
+		}
+
+
+		// Setup ball
+		board[(ball_y*width) + ball_x] = ball;
+
+    // Main game loop
+		out(0x000F 0);
+		
+		set_cursor((print_x-5) (print_y-2));
+		BG_COLOR = 6;
+		FG_COLOR = 6;
+		print(starting);
+		sleep_ms(1500);
+    while (game_running == 1) {
+      // Read keyboard, update player pos
+      keyboard = read_char();
+      if (keyboard == 27) {
+        // ESCAPE => quit program
+				BG_COLOR = 6;
+				FG_COLOR = 6;
+				set_cursor((print_x-3) (print_y-2));
+				print(goodbye);
+				sleep_ms(1000);
+        return 0; 
+      } 
+			if (keyboard == 's') {
+        if (p1_y < (height - p_height - padding)) {
+          // P1 move down
+          p1_y = p1_y + 1;
+
+          // Update board
+          board[((p1_y-1)*width) + p1_x] = bg;
+          board[((p1_y + (p_height-1))*width) + p1_x] = p1;
+        }
+      } else if (keyboard == 'w') {
+        if (p1_y > padding) {
+          // P1 move up
+          p1_y = p1_y - 1;
+
+          // Update board
+          board[(p1_y*width) + p1_x] = p1;
+          board[((p1_y + p_height)*width) + p1_x] = bg;
+        }
+      } 
+			if (keyboard == 'l') {
+        if (p2_y < (height - p_height - padding)) {
+          // P2 move down
+          p2_y = p2_y + 1;
+
+          // Update board
+          board[((p2_y-1)*width) + p2_x] = bg;
+          board[((p2_y + (p_height-1))*width) + p2_x] = p2;
+        }
+      } else if (keyboard == 'o') {
+        if (p2_y > padding) {
+          // P2 move up
+          p2_y = p2_y - 1;
+
+          // Update board
+          board[(p2_y*width) + p2_x] = p2;
+          board[((p2_y + p_height)*width) + p2_x] = bg;
+        }
+      }
+
+      // Calc new ball position
+      ball_n_x = ball_x + ball_d_x;
+      ball_n_y = ball_y + ball_d_y;
+
+      // Check collision, update score if necessary
+      char ball_n_pos = board[(ball_n_y*width) + ball_n_x];
+      
+      if (ball_n_pos == wall) {
+        // Collide with wall, bounce in y direction
+        ball_d_y = -ball_d_y;
+        ball_n_x = ball_x + ball_d_x;
+        ball_n_y = ball_y + ball_d_y;
+      } else if ((ball_n_pos == p1) | (ball_n_pos == p2)) {
+				ball_d_x = -ball_d_x;
+        ball_n_x = ball_x + ball_d_x;
+        ball_n_y = ball_y + ball_d_y;
+			} else if (ball_n_pos == point_zone1) {
+        // Player 2 made a goal
+        p2score = p2score + 1;
+        // Reset ball position and direction
+        ball_n_x = 19;
+        ball_n_y = 14;
+        ball_d_x = 1;
+        ball_d_y = 1;
+				BG_COLOR = 6;
+				FG_COLOR = 6;
+				set_cursor((print_x+2) print_y-3);
+				print(goal);
+				sleep_ms(1000);
+      } else if (ball_n_pos == point_zone2) {
+        // Player 1 made a goal
+        p1score = p1score + 1;
+        // Reset ball position and direction
+        ball_n_x = 19;
+        ball_n_y = 14;
+        ball_d_x = -1;
+        ball_d_y = -1;
+				BG_COLOR = 6;
+				FG_COLOR = 6;
+				set_cursor((print_x-10) (print_y-3));
+				print(goal);
+				sleep_ms(1000);
+      }
+
+      // Update board
+      board[(ball_y*width) + ball_x] = bg;
+      board[(ball_n_y*width) + ball_n_x] = ball;
+      
+      // Update ball p  osition
+      ball_x = ball_n_x;
+      ball_y = ball_n_y;
+
+			// Draw board and score
+			i = 0;
+			char curr = 0;
+			while (i < (width*height)) {
+				curr = board[i];
+				if (curr == bg) {
+					// Draw blank bg
+					BG_COLOR = 0;
+					print_c_at(' ' i);
+				} else if (curr == point_zone1) {
+					// Draw score zone 1
+					BG_COLOR = 4;
+					print_c_at(' ' i);
+				} else if (curr == point_zone2) {
+					// Draw score zone 2
+					BG_COLOR = 4;
+					print_c_at(' ' i);
+				} else if (curr == wall) {
+          // Draw wall
+					BG_COLOR = 1;
+					print_c_at(' ' i);
+        } else if ((curr == p1) | (curr == p2)) {
+					// Draw player
+          BG_COLOR = 5;
+          print_c_at(' ' i);
+				} else if (curr == ball) {
+					// Draw ball
+					FG_COLOR = 2;
+					BG_COLOR = 2;
+					print_c_at('@' i); // @ at i pos
+				} else if (curr == score1) {
+					// Draw score 1
+					FG_COLOR = 3;
+					BG_COLOR = 3;
+					print_c_at((p1score + 0x30) i); // print p1 score
+				} else if (curr == score2) {
+					// Draw score 2
+					FG_COLOR = 3;
+					BG_COLOR = 3;
+					print_c_at((p2score + 0x30) i); // print p2 score
+				}
+				i = i + 1;
+			}
+			out(0x00FF 0);
+			
+      // Check points, end game if should
+      if (p1score >= win_score) {
+        // P1 wins
+        winner = 1;
+        game_running = 0;
+      } else if (p2score >= win_score) {
+        // P2 wins
+        winner = 2;
+        game_running = 0;
+      }
+			sleep_ms(120);
+    }
+    
+    // Print after game message and play again?
+    out(winner 0);
+		player_won[7] = (winner + 0x30);
+		BG_COLOR = 6;
+		FG_COLOR = 6;
+		set_cursor((print_x-4) print_y);
+		print(player_won);
+
+		set_cursor((print_x-9) (print_y + 3));
+		print(play_again);
+
+    // Check if play again or quit
+    int play_again = 0;
+		if (play_again == 0) {
+			out(play_again 0);
+		}
+    while (play_again == 0) {
+      keyboard = read_char();
+			out(board[0] 0);
+      if (keyboard == '\n') {
+        play_again = 1;
+      } else if (keyboard == 27) { 
+        // ESCAPE
+				BG_COLOR = 3;
+				FG_COLOR = 3;
+				set_cursor((print_x-3) (print_y-2));
+				print(goodbye);
+				sleep_ms(1000);
+				out(0xEEEE 0);
+        return 0;
+      }
+    } 
+		out(0xFFFF 0);
+		BG_COLOR = 6;
+		FG_COLOR = 6;
+		set_cursor((print_x-4) (print_y-2));
+		print(remaking);
+		sleep_ms(500);
+  }
+
+	// If somehow comes here, exit
+  return 0;
+}
+
+/*
+TSEA83 PROJECT USER PROGRAM
+
+Snake paint - A graphics program with a drawing snake
+*/
+
+int snake_paint() {
+    // Load paint palette
+    palette_index_write(1 PURE_RED    PURE_RED);
+    palette_index_write(2 PURE_ORANGE PURE_ORANGE);
+    palette_index_write(3 PURE_YELLOW PURE_YELLOW);
+    palette_index_write(4 PURE_LIME   PURE_LIME);
+    palette_index_write(5 PURE_GREEN  PURE_GREEN);
+    palette_index_write(6 PURE_AZURE  PURE_AZURE);
+    palette_index_write(7 PURE_BLUE   PURE_BLUE);
+    palette_index_write(8 PURE_MARINE PURE_MARINE);
+    palette_index_write(9 PURE_PURPLE PURE_PURPLE);
+    palette_index_write(10 PURE_PINK  PURE_PINK);
+
+    palette_index_write(0  PURE_WHITE PURE_WHITE);
+    palette_index_write(11 PURE_BLACK PURE_BLACK);
+
+    // Set cursor color
+    FG_COLOR = 11;
+
+    // Keyboard read loop
+    long keyboard = 0;
+    while(1) {
+        keyboard = read_char();
+
+        // If new value => keyboard != 0
+        if (keyboard) {
+            
+            // Movement
+            if (keyboard == 'w') {
+                print_c_at(' ' CURSOR);
+                back_line();
+                print_c_at('+' CURSOR);
+            }
+            else if (keyboard == 'a') {
+                print_c_at(' ' CURSOR);
+                back_cursor();
+                print_c_at('+' CURSOR);
+            }
+            else if (keyboard == 's') {
+                print_c_at(' ' CURSOR);
+                advance_line();
+                print_c_at('+' CURSOR);
+            }
+            else if (keyboard == 'd') {
+                print_c_at(' ' CURSOR);
+                advance_cursor();
+                print_c_at('+' CURSOR);
+            }
+
+            // Change color
+            // (Key 0 to 9)
+            else if ((keyboard >= 48) & (keyboard <= 57)) {
+                BG_COLOR = keyboard - 47;
+                print_c_at('+' CURSOR);
+            }
+            // (Enter)
+            else if (keyboard == '\n') {
+                BG_COLOR = 0;
+                print_c_at('+' CURSOR);
+            }
+
+            // Exit program
+            else if (keyboard == '\e') {
+                return 0;
+            }
+        }
+    }
+}
+
+
+
+int main() {
+    
+    out(USER_PROGRAM_COUNT 0);
+
+    // Setup buffer
+    char input_buffer[40];
+    int  index;
+
+    // Init keyboard
+    int keyboard;
+
+    // Buffer decoding variable
+    int buildning_buffer;
+    
+    // Program names buffer
+    char* programs_buff;
+    int program_index;
+
+    // Program searching variable
+    int searching;
+
+    // String lenght variable
+    int length;
+
+    while(1) {
+        // =========== Decode input ===========
+        index = 0;
+        keyboard = 0;
+        buildning_buffer = 1;
+
+        //Empty buffer
+        memset(input_buffer 40 0);
+        
+        // Output line start character
+        print_c('>');
+
+        // Keyboard read loop
+        while(buildning_buffer) {
+            keyboard = read_char();
+
+            // New input
+            if (keyboard) {
+                // Enter, decode the buffer
+                if (keyboard == '\n') {
+                    input_buffer[index] = '\0';
+                    buildning_buffer = 0;
+                }
+                // Backspace, remove last character
+                else if (keyboard == '\b') {
+                    // Dont remove past the first charactrer
+                    if (index != 0) {
+                        back_cursor();
+                        print_c_at(0 CURSOR);
+                        
+                        index = index - 1;
+                        input_buffer[index] = '\0';
+                    }
+                }
+                // Add character to buffer and screen
+                else {
+                    input_buffer[index] = keyboard;
+                    index = index + 1;
+                    print_c(keyboard);
+                }
+            }
+        }
+
+        // Clear screen for user program
+        clear();
+
+        // =========== Find program index ===========
+
+        // Ignore if the input is empty
+        if (string_length(input_buffer) != 0) {
+            
+            // Copy pointer to user program files buffer
+            programs_buff = USER_PROGRAMS;
+
+            program_index = 0;
+            searching = 1;
+
+            while((program_index < USER_PROGRAM_COUNT) & searching) {
+                
+                out(0x000F 0);
+
+                // Input matched program name
+                if (string_compare(input_buffer programs_buff) == 0) {
+                    out(0x00F0 0);
+                    searching = 0;
+                }
+                // Countinue to next string
+                else {
+                    
+                    out(0x0F00 0);
+
+                    length = string_length(programs_buff);
+                    programs_buff = programs_buff + length + 1;
+                    program_index = program_index + 1;
+                }
+            }
+
+            // =========== Call function ===========
+            // Found program
+            if (program_index != USER_PROGRAM_COUNT) {
+                
+                out(0xF000 0);
+
+                call_user_program(program_index);
+            }
+
+            // Clear screen for terminal
+            load_basic_palette();
+            FG_COLOR = 0;
+            BG_COLOR = 0;
+            clear();
+            out(0xA55 0);
+        }
+    }
+}
