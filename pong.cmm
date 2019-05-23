@@ -978,7 +978,7 @@ char point_zone2 = 8;
 char board[1200];
 
 // Output strings
-char starting[] = " STARTING...";
+char starting[] = "STARTING...";
 char player_won[] = "PLAYER X WON";
 char play_again[] = "PRESS ENTER TO PLAY AGAIN";
 char goal[] = "GOOOOOAAAAAL";
